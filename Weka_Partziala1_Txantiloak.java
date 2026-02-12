@@ -1,5 +1,19 @@
 package azterketa;
 
+import weka.core.Instances;                          // Weka-n "datu-multzoa" adierazteko klase nagusia
+import weka.core.converters.ConverterUtils.DataSource; // ARFF fitxategiak kargatzeko
+import weka.filters.Filter;                          // Filter guztien klase nagusia
+import weka.filters.unsupervised.instance.Randomize; // Datuen ordena ausaz aldatzeko filter-a
+import weka.filters.unsupervised.instance.RemovePercentage; // Portzentai baten arabera datuak kentzeko
+import weka.classifiers.bayes.NaiveBayes;            // Naive Bayes sailkatzailea
+import weka.classifiers.Evaluation;                  // Modeloa ebaluatzeko
+import weka.core.AttributeStats;                     // Atributuen informazioa lortzeko
+
+import java.util.Random;                             // Ausazko zenbakiak
+import java.util.Date;                               // Uneko data eta ordua
+import java.io.FileWriter;                           // Fitxategiak idazteko
+import java.io.PrintWriter;                          // Testua erraz idazteko
+
 public class azterketa{
 
     public static void main(String [] args) throws Exception{
@@ -106,16 +120,51 @@ public class azterketa{
         // ==============================
         // Stratified HoldOut
         // ================	   
+        Resample resample = new Resample();
+        resample.setNoReplacement(true);
+        resample.setSampleSizePercent(80);   // train 80%
+        resample.setBiasToUniformClass(1.0); // 保持类别比例
+        resample.setRandomSeed(1);
+        resample.setInputFormat(data);
+        Instances train = Filter.useFilter(data, resample);
         
+        // 剩余 20% dev
+        resample.setInvertSelection(true);
+        Instances dev = Filter.useFilter(data, resample);
+
         // ==============================
         // eval
         // ================	    
-        eval.toMatrixString();
         eval.precision(i);
         eval.recall(i);
         eval.fMeasure(i);
         eval.weightedPrecision();
         eval.weightedRecall();
         eval.weightedFMeasure();
-        
+        eval.pctCorrect() // Accuracy
+        eval.toSummaryString(); // Estatistikak
+        eval.toMatrixString(); //Nahasmen matrizea
+
+        // ==============================
+        // data multzoa ARFF fitxategi batean gorde
+        // ==============================
+        ArffSaver trainMultzoa = new ArffSaver();      // ARFF gordetzailea sortu
+        trainMultzoa.setInstances(train);              // Gorde beharreko datuak
+        trainMultzoa.setFile(new File(trainPath));     // Irteerako fitxategia
+        trainMultzoa.writeBatch();                     // Fitxategia idatzi
+
+        // ==============================
+        // modeloa gorde (fitxategiaren path, modeloa) eta kargatu
+        // ==============================
+        SerializationHelper.write(modelPath, nb);
+        Classifier nb = (Classifier) SerializationHelper.read(modelPath);
+
+        // ==============================
+        // Fitxategia idatzi eta gorde
+        // ==============================
+        PrintWriter writer = new PrintWriter(new FileWriter(irteeraPath));
+        writer.println("Exekuzio data: " + new Date());
+        writer.println();
+        writer.close(); // Fitxategia itxi
+
 
